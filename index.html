@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Claude Alerts" />
+  <meta name="theme-color" content="#7c3aed" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>Claude Alerts</title>
+  <style>
+    :root {
+      --purple: #7c3aed;
+      --purple-light: #a78bfa;
+      --purple-dark: #5b21b6;
+      --bg: #0f0f1a;
+      --surface: #1a1a2e;
+      --surface2: #16213e;
+      --border: #2d2d4e;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --green: #10b981;
+      --red: #ef4444;
+      --amber: #f59e0b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--purple-dark), var(--purple));
+      padding: 20px 20px 24px;
+      padding-top: calc(20px + env(safe-area-inset-top));
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo {
+      width: 42px;
+      height: 42px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .header-text h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .header-text p {
+      font-size: 13px;
+      opacity: 0.75;
+      margin-top: 2px;
+    }
+
+    /* Status pill */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 0.3s;
+    }
+    .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.error { background: var(--red); }
+
+    .status-text { font-size: 13px; color: var(--text-muted); }
+    .status-text strong { color: var(--text); }
+
+    /* Main content */
+    .content { padding: 20px; }
+
+    /* Setup card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: var(--purple-light); }
+    input[type="text"]::placeholder { color: var(--text-muted); }
+
+    .btn {
+      background: var(--purple);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); background: var(--purple-dark); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.secondary {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+    .btn.full { width: 100%; justify-content: center; display: flex; align-items: center; gap: 8px; }
+    .btn.danger { background: var(--red); }
+
+    .hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .hint a { color: var(--purple-light); text-decoration: none; }
+
+    /* Notification list */
+    .notif-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .notif-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .notif-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--purple-dark), var(--purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .notif-content { flex: 1; min-width: 0; }
+    .notif-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+    .notif-body { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+    .notif-time { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+    .notif-topic {
+      display: inline-block;
+      font-size: 11px;
+      background: rgba(124, 58, 237, 0.2);
+      color: var(--purple-light);
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin-bottom: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; line-height: 1.6; }
+
+    /* Section header */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .badge {
+      background: var(--purple);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 2px 8px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: calc(20px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 100;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--green); color: var(--green); }
+    .toast.error { border-color: var(--red); color: var(--red); }
+
+    /* Setup step indicator */
+    .steps {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .step {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      transition: background 0.3s;
+    }
+    .step.done { background: var(--purple); }
+    .step.active { background: var(--purple-light); }
+
+    /* Copy button */
+    .copy-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      font-family: 'SF Mono', monospace;
+      color: var(--purple-light);
+      word-break: break-all;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      cursor: pointer;
+    }
+    .copy-box .copy-icon { flex-shrink: 0; font-size: 16px; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 20px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 9px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+    }
+    .tab.active {
+      background: var(--purple);
+      color: white;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Connection info */
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .label { color: var(--text-muted); }
+    .info-row .value { color: var(--text); font-weight: 500; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🤖</div>
+  <div class="header-text">
+    <h1>Claude Alerts</h1>
+    <p>Notifications from your Claude agents</p>
+  </div>
+</div>
+
+<div class="status-bar">
+  <div class="status-dot" id="statusDot"></div>
+  <div class="status-text" id="statusText">Checking status…</div>
+</div>
+
+<div class="content">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('alerts')">🔔 Alerts</button>
+    <button class="tab" onclick="showTab('setup')">⚙️ Setup</button>
+  </div>
+
+  <!-- ALERTS TAB -->
+  <div class="tab-content active" id="tab-alerts">
+    <div class="section-header">
+      <div class="section-title">Recent Notifications</div>
+      <span class="badge" id="notifCount">0</span>
+    </div>
+    <div class="notif-list" id="notifList">
+      <div class="empty-state">
+        <div class="icon">🔕</div>
+        <p>No alerts yet.<br>Complete setup to start receiving notifications.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETUP TAB -->
+  <div class="tab-content" id="tab-setup">
+
+    <div id="setupSteps">
+      <!-- Step 1: Topic -->
+      <div class="card" id="step1card">
+        <div class="card-title">Step 1 — Your Alert Topic</div>
+        <div class="input-group">
+          <div class="input-row">
+            <input type="text" id="topicInput" placeholder="e.g. ryan-claude-alerts-7x4k" autocomplete="off" autocorrect="off" spellcheck="false" />
+            <button class="btn secondary" onclick="generateTopic()">Random</button>
+          </div>
+          <p class="hint">This is your private channel name on <a href="https://ntfy.sh" target="_blank">ntfy.sh</a>. Make it unique — anyone who knows it can send you notifications.</p>
+          <button class="btn full" onclick="saveTopic()" id="saveTopicBtn">Save Topic →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Subscribe -->
+      <div class="card" id="step2card" style="display:none">
+        <div class="card-title">Step 2 — Enable Push Notifications</div>
+        <div class="input-group">
+          <p class="hint">Tap the button below to allow push notifications. You'll see a browser prompt — tap <strong>Allow</strong>.</p>
+          <button class="btn full" onclick="subscribePush()" id="subscribeBtn">🔔 Enable Notifications</button>
+          <p class="hint" id="pushStatus"></p>
+        </div>
+      </div>
+
+      <!-- Step 3: Give topic to Claude -->
+      <div class="card" id="step3card" style="display:none">
+        <div class="card-title">Step 3 — Connect to Claude</div>
+        <div class="input-group">
+          <p class="hint">Copy your topic name and tell Claude to use it for alerts:</p>
+          <div class="copy-box" id="topicCopyBox" onclick="copyTopic()">
+            <span class="copy-icon">📋</span>
+            <span id="topicDisplay">—</span>
+          </div>
+          <p class="hint" style="margin-top:4px">Tell Claude: <em>"My Claude Alerts topic is [paste topic]. Use this when sending me push notifications."</em></p>
+          <div style="padding:12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;margin-top:4px">
+            <p style="font-size:13px;color:var(--green);font-weight:600">✅ You're all set!</p>
+            <p class="hint" style="margin-top:4px">Claude will POST to ntfy.sh whenever it needs to alert you. Notifications will appear here and on your lock screen.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reset -->
+      <div id="resetSection" style="display:none;margin-top:8px">
+        <button class="btn full secondary" onclick="resetSetup()" style="font-size:13px;color:var(--red);border-color:rgba(239,68,68,0.3)">Reset Setup</button>
+      </div>
+    </div>
+
+    <!-- Connection details (shown after setup) -->
+    <div class="card" id="connectionInfo" style="display:none;margin-top:0">
+      <div class="card-title">Connection Details</div>
+      <div class="info-row">
+        <span class="label">Topic</span>
+        <span class="value" id="infoTopic">—</span>
+      </div>
+      <div class="info-row">
+        <span class="label">ntfy.sh URL</span>
+        <span class="value" id="infoUrl" style="font-size:12px;word-break:break-all">—</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Push</span>
+        <span class="value" id="infoPush">—</span>
+      </div>
+    </div>
+
+  </div><!-- /setup tab -->
+</div><!-- /content -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'claudeAlerts';
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
+}
+function setState(updates) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...getState(), ...updates }));
+}
+
+// --- Tabs ---
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', ['alerts','setup'][i] === tab));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// --- Toast ---
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// --- Topic ---
+function generateTopic() {
+  const words = ['azure','cobalt','ember','nova','swift','lunar','solar','frost','cedar','bloom'];
+  const w1 = words[Math.floor(Math.random() * words.length)];
+  const w2 = words[Math.floor(Math.random() * words.length)];
+  const num = Math.floor(1000 + Math.random() * 9000);
+  document.getElementById('topicInput').value = `ryan-claude-${w1}-${num}`;
+}
+
+function saveTopic() {
+  const topic = document.getElementById('topicInput').value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!topic || topic.length < 5) { showToast('Topic too short', 'error'); return; }
+  setState({ topic });
+  showStep2();
+}
+
+// --- Setup flow ---
+function showStep2() {
+  document.getElementById('step2card').style.display = 'block';
+  document.getElementById('step2card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function showStep3() {
+  const state = getState();
+  document.getElementById('step3card').style.display = 'block';
+  document.getElementById('topicDisplay').textContent = state.topic;
+  document.getElementById('resetSection').style.display = 'block';
+  document.getElementById('connectionInfo').style.display = 'block';
+  updateConnectionInfo();
+  document.getElementById('step3card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function updateConnectionInfo() {
+  const state = getState();
+  document.getElementById('infoTopic').textContent = state.topic || '—';
+  document.getElementById('infoUrl').textContent = state.topic ? `https://ntfy.sh/${state.topic}` : '—';
+  document.getElementById('infoPush').textContent = state.pushSubscribed ? '✅ Active' : '❌ Not subscribed';
+}
+
+async function copyTopic() {
+  const topic = getState().topic;
+  if (!topic) return;
+  try {
+    await navigator.clipboard.writeText(topic);
+    showToast('Copied!', 'success');
+  } catch {
+    showToast('Topic: ' + topic);
+  }
+}
+
+function resetSetup() {
+  if (!confirm('Reset all setup? You will need to re-subscribe.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// --- Push Notifications ---
+async function subscribePush() {
+  const btn = document.getElementById('subscribeBtn');
+  const statusEl = document.getElementById('pushStatus');
+  const state = getState();
+
+  if (!state.topic) { showToast('Set your topic first', 'error'); return; }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    statusEl.textContent = '⚠️ Push notifications not supported in this browser. Install this page to your home screen first.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Requesting permission…';
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      btn.disabled = false;
+      btn.textContent = '🔔 Enable Notifications';
+      statusEl.textContent = '❌ Permission denied. Please allow notifications in your device settings.';
+      return;
+    }
+
+    btn.textContent = 'Subscribing…';
+
+    // Get ntfy.sh VAPID public key
+    const configRes = await fetch('https://ntfy.sh/v1/webpush');
+    const config = await configRes.json();
+    const vapidKey = config.vapidPublicKey || config.vapid_public_key;
+
+    if (!vapidKey) throw new Error('Could not get ntfy.sh VAPID key');
+
+    const registration = await navigator.serviceWorker.ready;
+
+    // Check if already subscribed
+    let sub = await registration.pushManager.getSubscription();
+    if (sub) { await sub.unsubscribe(); }
+
+    // Subscribe
+    sub = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey)
+    });
+
+    // Register subscription with ntfy.sh for our topic
+    const subRes = await fetch(`https://ntfy.sh/v1/webpush`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topics: [state.topic],
+        endpoint: sub.endpoint,
+        p256dh: arrayBufferToBase64(sub.getKey('p256dh')),
+        auth: arrayBufferToBase64(sub.getKey('auth'))
+      })
+    });
+
+    if (!subRes.ok) {
+      const errText = await subRes.text();
+      throw new Error(`ntfy.sh registration failed: ${errText}`);
+    }
+
+    setState({ pushSubscribed: true });
+    btn.textContent = '✅ Notifications Enabled!';
+    statusEl.textContent = '';
+    showToast('Push notifications enabled!', 'success');
+    updateStatus();
+    showStep3();
+
+  } catch (err) {
+    console.error('Push subscribe error:', err);
+    btn.disabled = false;
+    btn.textContent = '🔔 Try Again';
+    statusEl.textContent = '❌ Error: ' + err.message;
+    showToast('Subscribe failed', 'error');
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
+}
+
+function arrayBufferToBase64(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+}
+
+// --- Status ---
+function updateStatus() {
+  const state = getState();
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+
+  if (!state.topic) {
+    dot.className = 'status-dot';
+    text.innerHTML = 'Not configured — go to <strong>Setup</strong>';
+  } else if (!state.pushSubscribed) {
+    dot.className = 'status-dot error';
+    text.innerHTML = `Topic set, push not enabled — finish <strong>Setup</strong>`;
+  } else {
+    dot.className = 'status-dot connected';
+    text.innerHTML = `Connected · <strong>${state.topic}</strong>`;
+  }
+}
+
+// --- Load notification history ---
+function loadNotifications() {
+  if (!navigator.serviceWorker.controller) return;
+  navigator.serviceWorker.controller.postMessage({ type: 'GET_NOTIFICATIONS' });
+}
+
+navigator.serviceWorker.addEventListener('message', (event) => {
+  if (event.data?.type === 'NOTIFICATIONS') {
+    renderNotifications(event.data.data);
+  }
+});
+
+function renderNotifications(notifications) {
+  const list = document.getElementById('notifList');
+  const badge = document.getElementById('notifCount');
+  badge.textContent = notifications.length;
+
+  if (!notifications.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🔕</div><p>No alerts yet.<br>Complete setup to start receiving notifications.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = notifications.map(n => {
+    const time = new Date(n.timestamp);
+    const timeStr = time.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return `
+      <div class="notif-item">
+        <div class="notif-icon">🤖</div>
+        <div class="notif-content">
+          ${n.topic ? `<div class="notif-topic">${n.topic}</div>` : ''}
+          <div class="notif-title">${escHtml(n.title)}</div>
+          <div class="notif-body">${escHtml(n.body)}</div>
+          <div class="notif-time">${timeStr}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// --- Init ---
+async function init() {
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    try {
+      await navigator.serviceWorker.register('sw.js');
+      setTimeout(loadNotifications, 500);
+    } catch (e) {
+      console.warn('SW registration failed:', e);
+    }
+  }
+
+  // Restore state
+  const state = getState();
+
+  if (state.topic) {
+    document.getElementById('topicInput').value = state.topic;
+    showStep2();
+    if (state.pushSubscribed) {
+      document.getElementById('subscribeBtn').textContent = '✅ Notifications Enabled';
+      showStep3();
+    }
+  } else {
+    generateTopic();
+  }
+
+  updateStatus();
+}
+
+init();
+</script>
+</body>
+</html>
