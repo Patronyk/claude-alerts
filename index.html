@@ -488,7 +488,10 @@ function saveTopic() {
   const topic = document.getElementById('topicInput').value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
   if (!topic || topic.length < 5) { showToast('Topic too short', 'error'); return; }
   setState({ topic });
+  showToast('Topic saved', 'success');
   showStep2();
+  updateStatus();
+  if (getState().pushSubscribed) { showStep3(); }
 }
 
 // --- Setup flow ---
@@ -557,9 +560,12 @@ async function subscribePush() {
 
     btn.textContent = 'Subscribing…';
 
-    // Get ntfy.sh VAPID public key from /config.js (a JS file, not JSON)
-    const configText = await (await fetch('https://ntfy.sh/config.js')).text();
-    const vapidKey = configText.match(/"web_push_public_key"\s*:\s*"([^"]+)"/)?.[1];
+    // Get ntfy.sh VAPID public key. /v1/config is the CORS-enabled JSON endpoint;
+    // /config.js is the same-origin webapp file and rejects cross-origin reads.
+    const configRes = await fetch('https://ntfy.sh/v1/config');
+    if (!configRes.ok) throw new Error(`ntfy.sh /v1/config returned ${configRes.status}`);
+    const cfg = await configRes.json();
+    const vapidKey = cfg.web_push_public_key;
 
     if (!vapidKey) throw new Error('Could not get ntfy.sh VAPID key');
 
