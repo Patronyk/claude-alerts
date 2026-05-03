@@ -557,10 +557,9 @@ async function subscribePush() {
 
     btn.textContent = 'Subscribing…';
 
-    // Get ntfy.sh VAPID public key
-    const configRes = await fetch('https://ntfy.sh/v1/webpush');
-    const config = await configRes.json();
-    const vapidKey = config.vapidPublicKey || config.vapid_public_key;
+    // Get ntfy.sh VAPID public key from /config.js (a JS file, not JSON)
+    const configText = await (await fetch('https://ntfy.sh/config.js')).text();
+    const vapidKey = configText.match(/"web_push_public_key"\s*:\s*"([^"]+)"/)?.[1];
 
     if (!vapidKey) throw new Error('Could not get ntfy.sh VAPID key');
 
@@ -576,21 +575,23 @@ async function subscribePush() {
       applicationServerKey: urlBase64ToUint8Array(vapidKey)
     });
 
-    // Register subscription with ntfy.sh for our topic
-    const subRes = await fetch(`https://ntfy.sh/v1/webpush`, {
-      method: 'PUT',
+    // Register subscription with ntfy.sh for our topic.
+    // Use toJSON() so keys are base64url-encoded per Web Push spec — matches ntfy's reference impl.
+    const subJSON = sub.toJSON();
+    const subRes = await fetch('https://ntfy.sh/v1/webpush', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        topics: [state.topic],
-        endpoint: sub.endpoint,
-        p256dh: arrayBufferToBase64(sub.getKey('p256dh')),
-        auth: arrayBufferToBase64(sub.getKey('auth'))
+        endpoint: subJSON.endpoint,
+        auth: subJSON.keys.auth,
+        p256dh: subJSON.keys.p256dh,
+        topics: [state.topic]
       })
     });
 
     if (!subRes.ok) {
       const errText = await subRes.text();
-      throw new Error(`ntfy.sh registration failed: ${errText}`);
+      throw new Error(`ntfy.sh registration failed (${subRes.status}): ${errText}`);
     }
 
     setState({ pushSubscribed: true });
@@ -614,10 +615,6 @@ function urlBase64ToUint8Array(base64String) {
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = atob(base64);
   return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
-}
-
-function arrayBufferToBase64(buffer) {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
 }
 
 // --- Status ---

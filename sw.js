@@ -18,13 +18,14 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'Claude Alert';
+  const scope = self.registration.scope;
   const options = {
     body: data.body || data.message || '',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: scope + 'icon-192.png',
+    badge: scope + 'icon-192.png',
     tag: data.tag || 'claude-alert-' + Date.now(),
     data: {
-      url: data.click_action || data.url || '/',
+      url: data.click_action || data.url || scope,
       timestamp: Date.now(),
       topic: data.topic || ''
     },
@@ -44,16 +45,18 @@ self.addEventListener('push', (event) => {
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const scope = self.registration.scope;
+  const raw = event.notification.data?.url || scope;
+  const target = raw.startsWith('http') ? raw : new URL(raw, scope).href;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
+        if (client.url.startsWith(scope) && 'focus' in client) {
           return client.focus();
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow(url.startsWith('http') ? url : self.location.origin + url);
+        return clients.openWindow(target);
       }
     })
   );
