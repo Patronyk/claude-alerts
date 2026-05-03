@@ -414,7 +414,9 @@
             <span class="copy-icon">📋</span>
             <span id="topicDisplay">—</span>
           </div>
-          <p class="hint" style="margin-top:4px">Tell Claude: <em>"My Claude Alerts topic is [paste topic]. Use this when sending me push notifications."</em></p>
+          <p class="hint" style="margin-top:4px">Tell Claude: <em>"My Claude Alerts topic is [paste topic]. POST notifications to https://ntfy.sh/[topic] with JSON {title, message}."</em></p>
+          <button class="btn full secondary" onclick="sendTestNotification()" id="testBtn" style="margin-top:4px">📨 Send Test Notification</button>
+          <p class="hint" id="testStatus"></p>
           <div style="padding:12px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;margin-top:4px">
             <p style="font-size:13px;color:var(--green);font-weight:600">✅ You're all set!</p>
             <p class="hint" style="margin-top:4px">Claude will POST to ntfy.sh whenever it needs to alert you. Notifications will appear here and on your lock screen.</p>
@@ -525,6 +527,33 @@ async function copyTopic() {
     showToast('Copied!', 'success');
   } catch {
     showToast('Topic: ' + topic);
+  }
+}
+
+async function sendTestNotification() {
+  const topic = getState().topic;
+  const btn = document.getElementById('testBtn');
+  const status = document.getElementById('testStatus');
+  if (!topic) { showToast('No topic set', 'error'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  status.textContent = '';
+  try {
+    const res = await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
+      method: 'POST',
+      headers: { 'Title': 'Claude Alerts test', 'Content-Type': 'text/plain' },
+      body: 'If you see this on your lock screen, push delivery is working.'
+    });
+    if (!res.ok) throw new Error(`ntfy.sh returned ${res.status}`);
+    btn.textContent = '📨 Sent — check your lock screen';
+    status.textContent = 'Test sent. iOS may take a few seconds; if it does not arrive, the PWA must be installed via Share → Add to Home Screen.';
+    showToast('Test sent', 'success');
+    setTimeout(() => { btn.disabled = false; btn.textContent = '📨 Send Test Notification'; }, 4000);
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '📨 Send Test Notification';
+    status.textContent = '❌ ' + err.message;
+    showToast('Test failed', 'error');
   }
 }
 
